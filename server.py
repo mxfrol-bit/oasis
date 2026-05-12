@@ -103,11 +103,26 @@ async def index(_request: web.Request) -> web.FileResponse:
     return web.FileResponse(WEB_DIR / "index.html")
 
 
+async def admin_page(_request: web.Request) -> web.FileResponse:
+    return web.FileResponse(WEB_DIR / "admin.html")
+
+
+async def admin_config(_request: web.Request) -> web.Response:
+    """Возвращает supabase_url + anon_key для админки (только публичные данные)."""
+    return web.json_response({
+        "supabase_url": os.environ["SUPABASE_URL"],
+        "supabase_anon_key": os.environ["SUPABASE_ANON_KEY"],
+        "bot_username": os.environ.get("BOT_USERNAME", "RSroom_bot"),
+    })
+
+
 def create_app() -> web.Application:
     app = web.Application()
     app.router.add_get("/health", health)
     app.router.add_get("/api/debug", debug)
+    app.router.add_get("/api/admin/config", admin_config)
     app.router.add_post("/api/auth", auth)
     app.router.add_get("/", index)
+    app.router.add_get("/admin", admin_page)
     app.router.add_static("/assets/", path=WEB_DIR / "assets", show_index=False)
     return app

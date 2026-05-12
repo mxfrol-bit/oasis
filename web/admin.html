@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>OASIS · Админ</title>
+<style>
+:root {
+  --bg:#0a0e1a; --panel:#111729; --panel2:#161d33; --line:rgba(255,255,255,.09);
+  --text:#eef7ff; --muted:#8794ac; --soft:#c7d7ea;
+  --cyan:#5be7ff; --violet:#9d69ff; --green:#65f0b4; --gold:#ffd97a; --red:#ff6e86;
+  --radius:14px;
+}
+* { box-sizing:border-box; margin:0; padding:0 }
+html,body { height:100% }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  background: radial-gradient(circle at 0% 0%, rgba(91,231,255,.08), transparent 40%),
+              radial-gradient(circle at 100% 100%, rgba(157,105,255,.08), transparent 40%),
+              var(--bg);
+  color: var(--text); font-size: 14px; line-height: 1.5;
+  min-height: 100vh;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: transparent }
+a { color: var(--cyan); text-decoration: none }
+
+.wrap { max-width: 1400px; margin: 0 auto; padding: 24px 28px 80px }
+
+/* HEADER */
+header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding-bottom:18px; border-bottom:1px solid var(--line) }
+.brand { display:flex; align-items:center; gap:14px }
+.brand-logo { width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,#5be7ff,#9d69ff); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; color:#0a1020 }
+.brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em }
+.brand .small { font-size: 12px; color: var(--muted); margin-top: 2px }
+.header-right { display: flex; gap: 8px; align-items: center }
+.btn { padding: 9px 14px; border-radius: 10px; background: linear-gradient(135deg, #5be7ff, #9d69ff); color: #0a1020; font-weight: 700; font-size: 13px }
+.btn.secondary { background: rgba(255,255,255,.07); color: var(--text); border: 1px solid var(--line) }
+.btn.ghost { background: transparent; color: var(--muted); padding: 6px 10px }
+.btn:disabled { opacity: .4; cursor: not-allowed }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px }
+.metric { padding: 16px 18px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line) }
+.metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em }
+.metric .value { font-size: 26px; font-weight: 800; margin-top: 4px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums }
+.metric .sub { font-size: 12px; color: var(--muted); margin-top: 2px }
+
+/* LAYOUT */
+.layout { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px }
+.panel h2 { font-size: 15px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.01em; display: flex; justify-content: space-between; align-items: center }
+.panel h2 .badge { font-size: 11px; font-weight: 600; color: var(--muted); background: rgba(255,255,255,.05); padding: 3px 8px; border-radius: 6px }
+
+/* SEARCH */
+.search { display: flex; gap: 8px; margin-bottom: 12px }
+.search input { flex: 1; padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--line); font-size: 14px; color: var(--text) }
+.search input:focus { outline: 0; border-color: rgba(91,231,255,.4); background: rgba(91,231,255,.05) }
+.search input::placeholder { color: var(--muted) }
+
+/* USER LIST */
+.users-list { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow-y: auto }
+.users-list::-webkit-scrollbar { width: 6px }
+.users-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px }
+.user-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; transition: .15s }
+.user-row:hover { background: rgba(255,255,255,.04); border-color: var(--line) }
+.user-row.selected { background: linear-gradient(135deg, rgba(91,231,255,.10), rgba(157,105,255,.06)); border-color: rgba(91,231,255,.25) }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #5be7ff, #9d69ff); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #0a1020; flex-shrink: 0 }
+.user-body { flex: 1; min-width: 0; overflow: hidden }
+.user-body b { font-weight: 700; font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.user-body span { font-size: 12px; color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.user-meta { text-align: right; flex-shrink: 0 }
+.user-meta b { font-size: 14px; font-variant-numeric: tabular-nums; color: var(--green) }
+.user-meta span { font-size: 11px; color: var(--muted) }
+.gm-badge { font-size: 9px; background: rgba(255,217,122,.18); color: var(--gold); padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 6px; text-transform: uppercase; letter-spacing: .05em }
+
+/* USER DETAILS */
+.user-card { padding: 18px 20px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); margin-bottom: 12px }
+.user-card-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line) }
+.user-card-head .avatar { width: 52px; height: 52px; font-size: 19px }
+.user-card-head h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em }
+.user-card-head .small { font-size: 12px; color: var(--muted); margin-top: 2px }
+.kv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px }
+.kv { padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--line) }
+.kv .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em }
+.kv .value { font-size: 17px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums }
+.grant-form { padding: 14px; border-radius: 10px; background: rgba(91,231,255,.05); border: 1px solid rgba(91,231,255,.18); margin-bottom: 14px }
+.grant-form h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--cyan); text-transform: uppercase; letter-spacing: .06em }
+.grant-row { display: grid; grid-template-columns: 100px 1fr 110px; gap: 8px }
+.grant-row input { padding: 9px 11px; border-radius: 8px; background: rgba(0,0,0,.3); border: 1px solid var(--line); color: var(--text); font-size: 14px }
+.grant-row input:focus { outline: 0; border-color: rgba(91,231,255,.4) }
+
+/* TRANSACTIONS */
+.tx-list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto }
+.tx-list::-webkit-scrollbar { width: 6px }
+.tx-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px }
+.tx { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; font-size: 13px }
+.tx:hover { background: rgba(255,255,255,.03) }
+.tx-info b { font-weight: 600; font-size: 13px }
+.tx-info span { font-size: 11px; color: var(--muted); display: block }
+.tx-amt { font-weight: 700; font-family: 'SF Mono', Consolas, monospace; font-variant-numeric: tabular-nums }
+.tx-amt.pos { color: var(--green) }
+.tx-amt.neg { color: var(--red) }
+
+/* RECENT */
+.recent-row { display: flex; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 13px; align-items: center }
+.recent-row:hover { background: rgba(255,255,255,.03); cursor: pointer }
+.recent-info { flex: 1; min-width: 0 }
+.recent-info b { font-weight: 600 }
+.recent-info span { font-size: 11px; color: var(--muted); display: block }
+
+.empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px }
+.loading { padding: 40px; text-align: center; color: var(--muted) }
+.error-screen { padding: 60px 20px; text-align: center; max-width: 500px; margin: 80px auto }
+.error-screen h2 { font-size: 22px; margin-bottom: 8px }
+.error-screen p { color: var(--muted); line-height: 1.6 }
+.error-screen code { display: block; padding: 12px; background: rgba(0,0,0,.4); border-radius: 8px; margin-top: 14px; font-size: 12px; word-break: break-all; text-align: left; color: var(--soft) }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); padding: 12px 20px; border-radius: 12px; font-size: 13px; opacity: 0; transition: .25s; pointer-events: none; z-index: 100; box-shadow: 0 10px 40px rgba(0,0,0,.5) }
+.toast.show { opacity: 1; bottom: 32px }
+.toast.success { border-color: rgba(101,240,180,.3); color: var(--green) }
+.toast.error { border-color: rgba(255,110,134,.3); color: var(--red) }
+
+@media (max-width: 980px) {
+  .metrics { grid-template-columns: 1fr 1fr }
+  .layout { grid-template-columns: 1fr }
+  .kv-grid { grid-template-columns: 1fr 1fr }
+  .grant-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="root">
+  <div class="loading">Авторизация…</div>
+</div>
+
+<div class="toast" id="toast">Готово</div>
+
+<script>
+let cfg = null;       // {supabase_url, supabase_anon_key, bot_username}
+let jwt = null;       // GM JWT
+let me = null;        // current admin user
+let users = [];       // user list
+let selectedUser = null;
+let userTxs = [];
+let recentTxs = [];
+let stats = { totalUsers: 0, totalKey: 0, totalRefs: 0, levelsClosed: 0 };
+let searchTimer = null;
+
+// ============================================================
+// SUPABASE
+// ============================================================
+async function sb(path, opts = {}) {
+  const r = await fetch(`${cfg.supabase_url}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      'apikey': cfg.supabase_anon_key,
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
+  return await r.json();
+}
+
+async function rpc(name, params = {}) {
+  return sb(`rpc/${name}`, { method: 'POST', body: JSON.stringify(params) });
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function getTokenFromHash() {
+  const h = window.location.hash || '';
+  const m = h.match(/token=([^&]+)/);
+  return m ? m[1] : null;
+}
+
+async function boot() {
+  // 1. JWT из URL
+  jwt = getTokenFromHash();
+  if (!jwt) {
+    jwt = localStorage.getItem('oasis-admin-jwt');
+  } else {
+    localStorage.setItem('oasis-admin-jwt', jwt);
+    // прячем токен из URL, чтобы не светить
+    history.replaceState(null, '', window.location.pathname);
+  }
+  if (!jwt) {
+    showError('Нет токена', 'Открой бота @RSroom_bot, отправь команду /admin — получишь ссылку с токеном.');
+    return;
+  }
+
+  // 2. Config
+  try {
+    const r = await fetch('/api/admin/config');
+    if (!r.ok) throw new Error('Не получил config');
+    cfg = await r.json();
+  } catch (e) {
+    showError('Сервер недоступен', 'Проверь что Railway-сервис работает: ' + e.message);
+    return;
+  }
+
+  // 3. Загружаем данные
+  try {
+    await refreshAll();
+  } catch (e) {
+    if (e.message.includes('401') || e.message.includes('PGRST')) {
+      localStorage.removeItem('oasis-admin-jwt');
+      showError('Токен истёк или невалиден', 'Запроси новую ссылку через /admin в боте.\n\n' + e.message);
+      return;
+    }
+    showError('Ошибка загрузки', e.message);
+    return;
+  }
+}
+
+// ============================================================
+// LOAD DATA
+// ============================================================
+async function loadMe() {
+  // get_my_dashboard вернёт всё про текущего админа
+  me = await rpc('get_my_dashboard');
+  if (!me?.user?.is_gm) {
+    throw new Error('Этот юзер не GM. Попроси сделать тебя GM через is_gm=true в Supabase.');
+  }
+}
+
+async function loadStats() {
+  // Простые агрегаты — GM видит всё через RLS
+  const [usersAll, txAll, refsAll, roomsClosed] = await Promise.all([
+    sb('users?select=id,is_banned'),
+    sb('transactions?select=amount,reason'),
+    sb('referrals?select=id'),
+    sb('rooms?select=id&status=eq.closed'),
+  ]);
+  stats.totalUsers = usersAll.filter(u => !u.is_banned).length;
+  stats.totalKey = txAll.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
+                 - txAll.filter(t => t.amount < 0).reduce((s, t) => s - t.amount, 0);
+  stats.totalRefs = refsAll.length;
+  stats.levelsClosed = roomsClosed.length;
+}
+
+async function loadUsers(query = '') {
+  let path = 'users?select=id,telegram_id,username,first_name,is_gm,created_at,profiles(key_balance,total_referrals,highest_level_reached)&order=created_at.desc&limit=100';
+  if (query) {
+    const q = query.replace(/[%_]/g, '');
+    if (/^\d+$/.test(q)) {
+      path = `users?select=id,telegram_id,username,first_name,is_gm,created_at,profiles(key_balance,total_referrals,highest_level_reached)&telegram_id=eq.${q}`;
+    } else {
+      path = `users?select=id,telegram_id,username,first_name,is_gm,created_at,profiles(key_balance,total_referrals,highest_level_reached)&or=(first_name.ilike.*${q}*,username.ilike.*${q}*)&order=created_at.desc&limit=50`;
+    }
+  }
+  users = await sb(path);
+}
+
+async function loadRecentTxs() {
+  recentTxs = await sb('transactions?select=*,users!inner(first_name,username,telegram_id)&order=created_at.desc&limit=20');
+}
+
+async function loadUserTxs(userId) {
+  userTxs = await sb(`transactions?user_id=eq.${userId}&select=*&order=created_at.desc&limit=50`);
+}
+
+async function refreshAll() {
+  if (!me) await loadMe();
+  await Promise.all([loadStats(), loadUsers(), loadRecentTxs()]);
+  if (selectedUser) await loadUserTxs(selectedUser.id);
+  render();
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+async function grantKey() {
+  if (!selectedUser) return;
+  const amount = parseInt(document.getElementById('grantAmount').value, 10);
+  const reason = document.getElementById('grantReason').value.trim() || 'manual';
+  if (!amount || Math.abs(amount) < 1) { showToast('Введи сумму', 'error'); return }
+
+  const btn = document.getElementById('grantBtn');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    await rpc('gm_grant_key', {
+      p_target_user_id: selectedUser.id,
+      p_amount: amount,
+      p_reason: reason,
+      p_comment: `via admin panel`,
+    });
+    showToast(`${amount > 0 ? '+' : ''}${amount} KEY → ${selectedUser.first_name || 'юзер'}`, 'success');
+    document.getElementById('grantAmount').value = '';
+    document.getElementById('grantReason').value = '';
+    await refreshAll();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message.split(':').pop().trim().slice(0, 100), 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Начислить';
+  }
+}
+
+function selectUser(id) {
+  selectedUser = users.find(u => u.id === id);
+  loadUserTxs(id).then(render);
+}
+
+function onSearch(e) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    try {
+      await loadUsers(e.target.value.trim());
+      render();
+    } catch (err) {
+      showToast('Ошибка поиска', 'error');
+    }
+  }, 250);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function fmt(n) { return (n ?? 0).toLocaleString('ru-RU') }
+function fmtDate(s) {
+  const d = new Date(s);
+  return d.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+function initials(u) { return (u.first_name || u.username || 'U').charAt(0).toUpperCase() }
+function reasonLabel(r) {
+  return ({
+    welcome_bonus:'Стартовый бонус', open_room:'Открытие комнаты', close_level:'Закрытие уровня',
+    gm_grant:'Начисление GM', transfer_to_game:'Перевод в игру', quest_reward:'Квест',
+  })[r] || r;
+}
+
+function render() {
+  document.getElementById('root').innerHTML = `
+    <header>
+      <div class="brand">
+        <div class="brand-logo">O</div>
+        <div>
+          <h1>OASIS · Админ</h1>
+          <div class="small">${me?.user?.first_name || ''} · GM · @${cfg.bot_username}</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="btn secondary" onclick="refreshAll().then(render).catch(e=>showToast(e.message,'error'))">↻ Обновить</button>
+        <button class="btn ghost" onclick="logout()">Выйти</button>
+      </div>
+    </header>
+
+    <div class="metrics">
+      <div class="metric"><div class="label">Юзеров</div><div class="value">${fmt(stats.totalUsers)}</div><div class="sub">активных</div></div>
+      <div class="metric"><div class="label">KEY в обороте</div><div class="value">${fmt(stats.totalKey)}</div><div class="sub">net (выдано − потрачено)</div></div>
+      <div class="metric"><div class="label">Рефералов всего</div><div class="value">${fmt(stats.totalRefs)}</div><div class="sub">приглашений</div></div>
+      <div class="metric"><div class="label">Уровней закрыто</div><div class="value">${fmt(stats.levelsClosed)}</div><div class="sub">всеми юзерами</div></div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <h2>Юзеры <span class="badge">${users.length}</span></h2>
+        <div class="search">
+          <input id="searchInput" placeholder="Поиск по имени, @username или telegram_id…" oninput="onSearch(event)">
+        </div>
+        <div class="users-list">
+          ${users.length === 0 ? '<div class="empty">Никого не нашёл</div>' :
+          users.map(u => {
+            const p = u.profiles?.[0] || u.profiles || {};
+            return `<div class="user-row ${selectedUser?.id===u.id?'selected':''}" onclick="selectUser('${u.id}')">
+              <div class="avatar">${initials(u)}</div>
+              <div class="user-body">
+                <b>${u.first_name || '—'}${u.is_gm ? '<span class="gm-badge">GM</span>' : ''}</b>
+                <span>${u.username ? '@'+u.username : ''} · tg ${u.telegram_id}</span>
+              </div>
+              <div class="user-meta">
+                <b>${fmt(p.key_balance || 0)}</b>
+                <span>${p.highest_level_reached || 0}/12 · ${p.total_referrals || 0} реф</span>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div>
+        ${selectedUser ? renderUserCard() : renderRecent()}
+      </div>
+    </div>
+  `;
+}
+
+function renderUserCard() {
+  const u = selectedUser;
+  const p = u.profiles?.[0] || u.profiles || {};
+  return `
+    <div class="user-card">
+      <div class="user-card-head">
+        <div class="avatar">${initials(u)}</div>
+        <div style="flex:1">
+          <h3>${u.first_name || '—'}${u.is_gm ? '<span class="gm-badge">GM</span>' : ''}</h3>
+          <div class="small">${u.username ? '@'+u.username+' · ' : ''}tg <code>${u.telegram_id}</code></div>
+          <div class="small">Регистрация: ${fmtDate(u.created_at)}</div>
+        </div>
+        <button class="btn ghost" onclick="selectedUser=null;render()">×</button>
+      </div>
+      <div class="kv-grid">
+        <div class="kv"><div class="label">Баланс</div><div class="value">${fmt(p.key_balance || 0)}</div></div>
+        <div class="kv"><div class="label">Уровень</div><div class="value">${p.highest_level_reached || 0}/12</div></div>
+        <div class="kv"><div class="label">Рефералов</div><div class="value">${p.total_referrals || 0}</div></div>
+      </div>
+
+      <div class="grant-form">
+        <h4>Начислить / списать KEY</h4>
+        <div class="grant-row">
+          <input id="grantAmount" type="number" placeholder="±500" autocomplete="off">
+          <input id="grantReason" type="text" placeholder="Причина (видна в истории)" autocomplete="off">
+          <button id="grantBtn" class="btn" onclick="grantKey()">Начислить</button>
+        </div>
+        <div class="small" style="margin-top:8px;color:var(--muted)">Отрицательное число — списать. Дневной лимит GM: 100&thinsp;000 KEY суммарно.</div>
+      </div>
+
+      <h2>История операций <span class="badge">${userTxs.length}</span></h2>
+      <div class="tx-list">
+        ${userTxs.length === 0 ? '<div class="empty">Нет операций</div>' :
+        userTxs.map(t => `<div class="tx">
+          <div class="tx-info"><b>${reasonLabel(t.reason)}</b><span>${fmtDate(t.created_at)}</span></div>
+          <div class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${t.amount >= 0 ? '+' : ''}${fmt(t.amount)}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderRecent() {
+  return `
+    <div class="panel">
+      <h2>Последние операции <span class="badge">live</span></h2>
+      <div class="tx-list">
+        ${recentTxs.length === 0 ? '<div class="empty">Пока пусто</div>' :
+        recentTxs.map(t => {
+          const u = t.users || {};
+          return `<div class="recent-row" onclick="selectUser('${t.user_id}')">
+            <div class="avatar" style="width:30px;height:30px;font-size:12px">${initials(u)}</div>
+            <div class="recent-info">
+              <b>${u.first_name || '—'}${u.username ? ' · @'+u.username : ''}</b>
+              <span>${reasonLabel(t.reason)} · ${fmtDate(t.created_at)}</span>
+            </div>
+            <div class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${t.amount >= 0 ? '+' : ''}${fmt(t.amount)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function showToast(text, type = '') {
+  const t = document.getElementById('toast');
+  t.className = 'toast ' + type;
+  t.textContent = text;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showError(title, details) {
+  document.getElementById('root').innerHTML = `
+    <div class="error-screen">
+      <h2>${title}</h2>
+      <p>${details.split('\n')[0]}</p>
+      ${details.includes('\n') ? `<code>${details.split('\n').slice(1).join('\n')}</code>` : ''}
+    </div>`;
+}
+
+function logout() {
+  localStorage.removeItem('oasis-admin-jwt');
+  location.reload();
+}
+
+boot();
+</script>
+</body>
+</html>

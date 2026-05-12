@@ -10,7 +10,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiohttp import web
 
-from handlers import common, gm, start
+from handlers import admin, common, gm, start
 from server import create_app
 from services.supabase_client import init_supabase
 
@@ -62,6 +62,7 @@ async def main() -> None:
 
     dp = Dispatcher()
     dp.include_router(start.router)
+    dp.include_router(admin.router)
     dp.include_router(gm.router)
     dp.include_router(common.router)
 
