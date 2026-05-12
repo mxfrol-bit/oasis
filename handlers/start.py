@@ -22,11 +22,9 @@ MINIAPP_URL = os.environ.get("PUBLIC_URL", "https://example.com")
 
 
 def parse_ref_payload(payload: str | None) -> tuple[str | None, int | None]:
-    """Парсит start_param. Форматы:
-      - 'ref_XXXXXXX'       → (XXXXXXX, None)
-      - 'ref_XXXXXXXL5'     → (XXXXXXX, 5)
-      - 'XXXXXXX'           → (XXXXXXX, None)
-    Возвращает (ref_code, target_level_id) или (None, None) если невалидно.
+    """Парсит start_param. Формат: 'ref_XXXXXXX' или 'XXXXXXX'.
+    Возвращает (ref_code, None). target_level_id остаётся None — уровень
+    выбирается реферралом в Mini App после регистрации.
     """
     if not payload:
         return (None, None)
@@ -34,17 +32,11 @@ def parse_ref_payload(payload: str | None) -> tuple[str | None, int | None]:
     if payload.startswith(REF_PREFIX):
         payload = payload[len(REF_PREFIX):]
     payload = payload.upper()
-    m = re.fullmatch(r"([A-Z2-9]{4,12})(?:L(\d{1,2}))?", payload)
-    if not m:
-        return (None, None)
-    code = m.group(1)
-    lvl = int(m.group(2)) if m.group(2) else None
-    if lvl is not None and not (1 <= lvl <= 12):
-        lvl = None
-    return (code, lvl)
+    if re.fullmatch(r"[A-Z2-9]{4,12}", payload):
+        return (payload, None)
+    return (None, None)
 
 
-# обратная совместимость со старым именем
 def parse_ref_code(payload: str | None) -> str | None:
     code, _ = parse_ref_payload(payload)
     return code

@@ -287,6 +287,13 @@ function render() {
   if (!auth) { c.innerHTML = '<div class="skeleton">Авторизация…</div>'; return; }
   if (!dashboard) { c.innerHTML = '<div class="skeleton">Загрузка профиля…</div>'; return; }
 
+  // НОВОЕ: если реферал ещё не выбрал уровень — показываем fullscreen-экран выбора
+  if (dashboard.needs_level_pick) {
+    c.innerHTML = renderLevelPick();
+    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+    return;
+  }
+
   const html = currentTab==='city'    ? renderCity()
              : currentTab==='home'    ? renderHome()
              : currentTab==='path'    ? renderPath()
@@ -295,6 +302,62 @@ function render() {
              : renderCabinet();
   c.innerHTML = html;
   document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === currentTab));
+}
+
+// ---------- LEVEL PICK (для нового реферала) ----------
+function renderLevelPick() {
+  const name = dashboard.user?.first_name || 'друг';
+  const balance = dashboard.profile?.key_balance ?? 0;
+
+  // Группируем уровни по категориям
+  const byCategory = { 'Хостел': [], 'Квартира': [], 'Дом': [], 'Оазис': [] };
+  levels.forEach(l => {
+    if (byCategory[l.category]) byCategory[l.category].push(l);
+  });
+
+  return `
+    <div style="padding:10px 4px 20px">
+      <h2 style="font-size:24px;font-weight:900;letter-spacing:-.03em;margin-bottom:6px">Привет, ${name}!</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;line-height:1.5">
+        Тебя пригласили в OASIS. Выбери в какую жизнь зайти.<br>
+        В каждой жизни 5 мест — твоё место будет занято.
+      </p>
+
+      ${Object.entries(byCategory).map(([cat, arr]) => arr.length === 0 ? '' : `
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding-left:4px">${cat}</div>
+          <div class="list" style="gap:6px">
+            ${arr.map(l => `<div class="row" style="cursor:pointer;padding:13px 14px" onclick="actPickLevel(${l.id})">
+              <div>
+                <strong style="font-size:14px">${l.name}</strong>
+                <span class="small">награда за закрытие: ${l.close_reward} KEY</span>
+              </div>
+              <span class="status ${l.id<=3?'good':l.id<=6?'warn':''}" style="font-weight:700">вход ${l.open_cost}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+      `).join('')}
+
+      <div class="notice" style="margin-top:10px">
+        Если у пригласившего эта комната ещё не открыта — он получит уведомление и должен открыть её в течение <b>7 дней</b>, иначе твоё место сгорит.
+      </div>
+    </div>
+  `;
+}
+
+async function actPickLevel(levelId) {
+  try {
+    tg?.HapticFeedback?.impactOccurred('medium');
+    const res = await sbRpc('pick_level', { p_level_id: levelId });
+    if (res.result === 'slot_taken') {
+      showToast(`Ты занял место в «${levels.find(l=>l.id===levelId)?.name}»`);
+    } else {
+      showToast(`Ты в очереди на «${levels.find(l=>l.id===levelId)?.name}» — 7 дней на открытие`);
+    }
+    await refresh();
+  } catch (e) {
+    showToast('Не получилось: ' + parseErr(e.message));
+  }
 }
 
 function topLine() {
@@ -448,7 +511,15 @@ function renderHome() {
       <div style="margin-top:6px"><button class="btn" style="padding:8px 12px;font-size:12px" onclick="actOpenRoom(${p.level_id})">${balance >= p.open_cost ? `Открыть за ${p.open_cost} KEY` : `Нужно ${p.open_cost} KEY`}</button></div>
     </div>`).join('');
 
+  // Если я сам жду открытия комнаты у реферрера
+  const myPendingLvl = dashboard.my_pending_level;
+  const myPendingLevelInfo = myPendingLvl ? levels.find(l => l.id === myPendingLvl) : null;
+  const myPendingBanner = myPendingLevelInfo ? `<div class="notice" style="margin-bottom:8px;border-color:rgba(91,231,255,.30);background:rgba(91,231,255,.06)">
+    🕓 Ты в очереди на <b>«${myPendingLevelInfo.name}»</b> у своего пригласившего. Когда он откроет комнату — ты автоматически займёшь место.
+  </div>` : '';
+
   return `${topLine()}
+    ${myPendingBanner}
     ${pendingBanner}
 
     <div class="card">
@@ -508,9 +579,9 @@ function roomCard(r) {
     <div class="actions row2" style="margin-top:8px">
       ${canClose
         ? `<button class="btn" onclick="actCloseRoom('${r.id}')">Закрыть · +${r.close_reward} KEY</button>
-           <button class="btn secondary" onclick="copyRoomLink(${r.level_id})">Ссылка на комнату</button>`
+           <button class="btn secondary" onclick="setTab('invite')">Пригласить</button>`
         : `<button class="btn" onclick="actBuySlot('${r.id}', ${r.open_cost})">Купить слот · ${r.open_cost} KEY</button>
-           <button class="btn secondary" onclick="copyRoomLink(${r.level_id})">Ссылка на комнату</button>`}
+           <button class="btn secondary" onclick="setTab('invite')">Пригласить</button>`}
     </div>
   </div>`;
 }
@@ -647,12 +718,12 @@ function renderPath() {
 // ---------- INVITE ----------
 function renderInvite() {
   const refCode = dashboard.user?.ref_code || '';
-  const rooms = dashboard.open_rooms || [];
   const baseLink = `https://t.me/${botUsername}?start=ref_${refCode}`;
+  const pending = dashboard.pending_by_level || [];
   return `${topLine()}
     <div class="card">
-      <h3>Реф-ссылка (общая)</h3>
-      <p>Друг попадёт в твою первую открытую комнату любого уровня.</p>
+      <h3>Реф-ссылка</h3>
+      <p>Друг откроет приложение, сам выберет в какую жизнь зайти. Если он выберет уровень, который ты ещё не открыл — ты увидишь уведомление и должен будешь открыть комнату в течение 7 дней.</p>
       <div class="linkbox">
         <code>${baseLink}</code>
         <button onclick="copyRef('${baseLink}')">копия</button>
@@ -660,21 +731,18 @@ function renderInvite() {
       <div class="actions"><button class="btn" onclick="shareRef('${baseLink}')">Поделиться</button></div>
     </div>
 
-    ${rooms.length > 0 ? `
-    <div class="card">
-      <h3>Ссылки на конкретные комнаты</h3>
-      <p>Друг попадёт сразу в выбранную тобой комнату.</p>
+    ${pending.length > 0 ? `
+    <div class="card" style="border-color:rgba(255,217,122,.30);background:rgba(255,217,122,.06)">
+      <h3>⏳ Кто ждёт открытия</h3>
+      <p>Эти жители выбрали комнаты которых у тебя нет. Открой их, чтобы они заняли слоты — иначе сгорят.</p>
       <div class="list" style="margin-top:10px">
-        ${rooms.map(r => {
-          const link = `${baseLink}L${r.level_id}`;
-          return `<div class="row">
-            <div>
-              <strong>${r.level_name}${r.room_seq>1?' #'+r.room_seq:''}</strong>
-              <span class="small">${r.filled}/5 · вход ${r.open_cost} KEY</span>
-            </div>
-            <button class="btn secondary" style="padding:6px 11px;font-size:12px" onclick="copyRoomLink(${r.level_id})">копия</button>
-          </div>`;
-        }).join('')}
+        ${pending.map(p => `<div class="row">
+          <div>
+            <strong>${p.level_name || 'Уровень ' + p.level_id}</strong>
+            <span class="small">${p.count} ${p.count===1?'житель ждёт':'жителей ждут'} · осталось ${Math.max(0, Math.floor(p.days_left))} дн.</span>
+          </div>
+          <button class="btn" style="padding:7px 11px;font-size:12px" onclick="actOpenRoom(${p.level_id})">${p.open_cost} KEY</button>
+        </div>`).join('')}
       </div>
     </div>` : ''}
 
