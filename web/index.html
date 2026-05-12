@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no" />
+<title>OASIS</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#050914;--panel:rgba(12,19,33,.78);--panel2:rgba(16,27,47,.86);--glass:rgba(255,255,255,.075);
+  --line:rgba(255,255,255,.12);--text:#eef7ff;--muted:#99a9bd;--soft:#c7d7ea;
+  --cyan:#5be7ff;--blue:#5d8cff;--violet:#9d69ff;--green:#65f0b4;--gold:#ffd97a;--red:#ff6e86;
+  --radius:22px;--stage1:#52e3ff;--stage2:#7a8cff;
+  --stageScene:url('./assets/scenes/hostel/01-room-night.jpg');
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;color:var(--text);overflow:hidden}
+body{background:radial-gradient(circle at 15% 10%,rgba(91,231,255,.18),transparent 34%),radial-gradient(circle at 82% 5%,rgba(157,105,255,.18),transparent 32%),linear-gradient(135deg,#050914,#071522 48%,#040812);position:relative}
+body:before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.55),transparent 70%);pointer-events:none;z-index:0}
+body:after{content:"";position:fixed;inset:-24px;z-index:0;background-image:var(--stageScene);background-size:cover;background-position:center;filter:blur(28px) brightness(.42) saturate(1.15);opacity:.42;transform:scale(1.05);transition:.4s ease;pointer-events:none}
+body.theme-hostel{--stage1:#52e3ff;--stage2:#7a8cff}
+body.theme-apartment{--stage1:#58f0ff;--stage2:#b069ff}
+body.theme-house{--stage1:#69f0bf;--stage2:#7bb7ff}
+body.theme-oasis{--stage1:#ffd97a;--stage2:#b573ff}
+button{font:inherit;border:0;cursor:pointer}
+.app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 0}
+.content{flex:1;overflow-y:auto;padding:14px 14px 96px;scrollbar-width:none}
+.content::-webkit-scrollbar{display:none}
+.nav{position:fixed;z-index:5;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));height:66px;border-radius:22px;background:rgba(6,12,21,.86);border:1px solid rgba(255,255,255,.13);display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px;backdrop-filter:blur(18px)}
+.nav button{background:transparent;color:#8fa4bb;border-radius:16px;font-size:18px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.nav button span{font-size:10px;font-weight:600}
+.nav button.active{color:#fff;background:linear-gradient(135deg,rgba(91,231,255,.22),rgba(157,105,255,.18));box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+.topline{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.avatar{display:flex;align-items:center;gap:10px}
+.ava{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--stage1),var(--stage2));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#0a1020}
+.title{font-weight:900;font-size:14px;letter-spacing:.04em}
+.small{font-size:11px;color:var(--muted)}
+.icon-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:16px}
+.key-card{margin:0 0 14px;padding:13px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(91,231,255,.16),rgba(157,105,255,.12));border:1px solid rgba(255,255,255,.14);display:flex;justify-content:space-between;align-items:center}
+.key-card span{font-size:12px;color:var(--soft)}
+.key-card b{font-size:22px;letter-spacing:-.02em}
+.stage-card{padding:18px;border-radius:20px;background:linear-gradient(180deg,rgba(17,28,48,.82),rgba(8,15,27,.78));border:1px solid var(--line);margin-bottom:12px;backdrop-filter:blur(20px)}
+.badge{display:inline-block;padding:5px 9px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:8px;background:rgba(91,231,255,.14);color:#c9f7ff;border:1px solid rgba(91,231,255,.22)}
+.stage-title{font-size:28px;font-weight:900;letter-spacing:-.04em;margin:8px 0 4px}
+.progress-row{display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px}
+.progress-row b{font-size:16px}
+.progress{height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--stage1),var(--stage2));transition:.35s ease}
+.actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}
+.actions.row2{grid-template-columns:1fr 1fr}
+.btn{padding:13px 14px;border-radius:14px;background:linear-gradient(135deg,var(--stage1),var(--stage2));color:#0a1020;font-weight:800;font-size:14px;letter-spacing:-.01em}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:saturate(.7)}
+.btn.secondary{background:rgba(255,255,255,.08);color:#eaf6ff;border:1px solid var(--line)}
+.btn.full{width:100%}
+.card{padding:14px;border-radius:18px;background:rgba(12,19,33,.78);border:1px solid var(--line);margin-top:12px;backdrop-filter:blur(20px)}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.card h3{margin:0;font-size:15px;font-weight:800;letter-spacing:-.01em}
+.card p{margin:0;color:#b6c5d6;font-size:13px;line-height:1.5}
+.status{font-size:11px;font-weight:800;padding:4px 8px;border-radius:8px;text-transform:uppercase;letter-spacing:.05em}
+.status.good{color:#65f0b4;background:rgba(101,240,180,.12)}
+.status.warn{color:#ffd97a;background:rgba(255,217,122,.12)}
+.status.lock{color:#99a9bd;background:rgba(153,169,189,.10)}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.row strong{font-weight:700;font-size:13px}
+.row .small{display:block;margin-top:1px}
+.slot-row{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:13px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.slot-num{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#99a9bd;flex-shrink:0}
+.slot-row.filled .slot-num{background:linear-gradient(135deg,var(--stage1),var(--stage2));color:#0a1020}
+.slot-body{flex:1;min-width:0}
+.slot-body b{font-size:13px;font-weight:700}
+.slot-body span{display:block;font-size:11px;color:var(--muted);margin-top:1px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.metric{padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.metric span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.metric b{display:block;font-size:18px;margin-top:3px}
+.level-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.level{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);transition:.2s}
+.level.done{background:rgba(101,240,180,.06);border-color:rgba(101,240,180,.22)}
+.level.current{background:linear-gradient(135deg,rgba(91,231,255,.16),rgba(157,105,255,.12));border-color:rgba(91,231,255,.30)}
+.level .num{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);font-weight:900;font-size:14px;flex-shrink:0}
+.level.done .num{background:rgba(101,240,180,.20)}
+.level.current .num{background:linear-gradient(135deg,var(--stage1),var(--stage2));color:#0a1020}
+.level .lvl-body{flex:1;min-width:0}
+.level .lvl-body strong{font-size:14px}
+.linkbox{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:13px;background:rgba(255,255,255,.06);border:1px solid var(--line);margin-top:10px}
+.linkbox code{flex:1;font-size:12px;color:#c9f7ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'SF Mono',Consolas,monospace}
+.linkbox button{padding:8px 12px;border-radius:10px;background:rgba(91,231,255,.18);color:#c9f7ff;font-weight:700;font-size:12px;border:1px solid rgba(91,231,255,.30)}
+.tx-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.tx{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid var(--line);font-size:13px}
+.tx-amt{font-weight:800;font-family:'SF Mono',Consolas,monospace}
+.tx-amt.pos{color:#65f0b4}
+.tx-amt.neg{color:#ff9faf}
+.tx-info{flex:1;min-width:0}
+.tx-info b{font-size:13px}
+.tx-info span{display:block;font-size:11px;color:var(--muted)}
+.bonus-row{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.04);border:1px solid var(--line);opacity:.55}
+.bonus-icon{width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.notice{margin-top:11px;padding:10px 12px;border-radius:11px;background:rgba(91,231,255,.06);border:1px solid rgba(91,231,255,.15);font-size:12px;color:#c9f7ff;line-height:1.4}
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(6,12,21,.94);border:1px solid var(--line);color:#fff;padding:10px 18px;border-radius:14px;font-size:13px;z-index:100;opacity:0;transition:.25s;pointer-events:none;backdrop-filter:blur(20px)}
+.toast.show{opacity:1;top:60px}
+.skeleton{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
+.tag-line{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.tag-line span{font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.05);color:var(--soft)}
+.modal{position:fixed;inset:0;z-index:50;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(8px)}
+.modal.active{display:flex}
+.modal-box{width:100%;background:linear-gradient(180deg,rgba(17,28,48,.96),rgba(8,15,27,.96));border-top:1px solid var(--line);border-radius:24px 24px 0 0;padding:18px 16px 28px;max-height:80vh;overflow-y:auto}
+.modal-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-top h2{margin:0;font-size:19px;font-weight:900;letter-spacing:-.02em}
+.modal .close{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.07);color:#fff;font-size:18px}
+.field{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.field input{padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:15px}
+.error-screen{padding:40px 20px;text-align:center}
+.error-screen h2{font-size:22px;margin-bottom:8px}
+.error-screen p{color:var(--muted);font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-width:340px;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="content" id="content">
+    <div class="skeleton">Загрузка…</div>
+  </div>
+  <div class="nav" id="nav"></div>
+</div>
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-top"><h2 id="modalTitle">Окно</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast">Готово</div>
+
+<script>
+// ============================================================
+// OASIS Mini App — vanilla, talks directly to Supabase via JWT
+// ============================================================
+
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.setHeaderColor("#050914");
+  tg.setBackgroundColor("#050914");
+}
+
+const tabs = [
+  ['home',    '⌂', 'Главная'],
+  ['path',    '⌁', 'Путь'],
+  ['invite',  '＋', 'Пригласить'],
+  ['bonus',   '✦', 'Бонусы'],
+  ['cabinet', '◈', 'Кабинет'],
+];
+
+// 12 levels mapped to 4 stage themes (matches Supabase seed levels.id 1..12)
+const LEVEL_STAGE = {1:'hostel',2:'hostel',3:'hostel',4:'apartment',5:'apartment',6:'apartment',7:'house',8:'house',9:'house',10:'oasis',11:'oasis',12:'oasis'};
+const STAGE_BG = {
+  hostel:    './assets/scenes/hostel/01-room-night.jpg',
+  apartment: './assets/scenes/apartment/01-studio-night.jpg',
+  house:     './assets/scenes/house/01-living-night.jpg',
+  oasis:     './assets/scenes/oasis/01-penthouse-night.jpg',
+};
+const STAGE_TITLE = { hostel:'Хостел', apartment:'Квартира', house:'Дом', oasis:'Оазис' };
+
+let auth = null;     // {jwt, supabase_url, supabase_anon_key, user_id, new_user, welcome_bonus, slot_filled, bot_username}
+let dashboard = null; // last fetched dashboard json
+let circle = [];
+let txs = [];
+let levels = []; // справочник из supabase
+let currentTab = 'home';
+let botUsername = 'RSroom_bot'; // перезапишется после /api/auth
+
+// ============================================================
+// Networking
+// ============================================================
+async function apiAuth() {
+  const initData = tg?.initData || '';
+  const start_param = tg?.initDataUnsafe?.start_param || null;
+  const ref_code = start_param && start_param.startsWith('ref_') ? start_param.slice(4) : null;
+  const r = await fetch('/api/auth', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({initData, ref_code}),
+  });
+  if (!r.ok) throw new Error('auth failed: ' + r.status + ' ' + await r.text());
+  return await r.json();
+}
+
+async function sbRpc(name, params={}) {
+  const r = await fetch(`${auth.supabase_url}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: {
+      'apikey': auth.supabase_anon_key,
+      'Authorization': `Bearer ${auth.jwt}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+  if (!r.ok) throw new Error(`${name}: ${r.status} ${await r.text()}`);
+  return await r.json();
+}
+
+async function sbSelect(path) {
+  const r = await fetch(`${auth.supabase_url}/rest/v1/${path}`, {
+    headers: {
+      'apikey': auth.supabase_anon_key,
+      'Authorization': `Bearer ${auth.jwt}`,
+    },
+  });
+  if (!r.ok) throw new Error(`select ${path}: ${r.status}`);
+  return await r.json();
+}
+
+// ============================================================
+// Data loading
+// ============================================================
+async function refresh() {
+  try {
+    [dashboard, circle, txs, levels] = await Promise.all([
+      sbRpc('get_my_dashboard'),
+      sbRpc('get_my_circle'),
+      sbSelect('transactions?select=amount,reason,created_at&order=created_at.desc&limit=20'),
+      sbSelect('levels?select=*&order=id'),
+    ]);
+    updateTheme();
+    render();
+  } catch (e) {
+    console.error(e);
+    showToast('Ошибка загрузки: ' + e.message);
+  }
+}
+
+function updateTheme() {
+  if (!dashboard) return;
+  const lvl = dashboard.profile?.current_level_id || (dashboard.profile?.highest_level_reached + 1) || 1;
+  const stage = LEVEL_STAGE[lvl] || 'hostel';
+  document.body.className = 'theme-' + stage;
+  document.documentElement.style.setProperty('--stageScene', `url('${STAGE_BG[stage]}')`);
+}
+
+// ============================================================
+// Render
+// ============================================================
+function setTab(t) { currentTab = t; render(); }
+
+function render() {
+  const c = document.getElementById('content');
+  if (!auth) { c.innerHTML = '<div class="skeleton">Авторизация…</div>'; return; }
+  if (!dashboard) { c.innerHTML = '<div class="skeleton">Загрузка профиля…</div>'; return; }
+
+  const html = currentTab==='home'    ? renderHome()
+             : currentTab==='path'    ? renderPath()
+             : currentTab==='invite'  ? renderInvite()
+             : currentTab==='bonus'   ? renderBonus()
+             : renderCabinet();
+  c.innerHTML = html;
+  document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === currentTab));
+}
+
+function topLine() {
+  const p = dashboard.profile || {};
+  const lvl = currentLevel();
+  return `
+    <div class="topline">
+      <div class="avatar">
+        <div class="ava">${(dashboard.user?.first_name || 'O').charAt(0).toUpperCase()}</div>
+        <div>
+          <div class="title">OASIS</div>
+          <div class="small">${lvl ? lvl.name : 'Старт'}</div>
+        </div>
+      </div>
+      <button class="icon-btn" onclick="openOnboarding()">?</button>
+    </div>
+    <div class="key-card">
+      <span>Баланс в игре</span>
+      <b>${p.key_balance ?? 0} KEY</b>
+    </div>`;
+}
+
+function currentLevel() {
+  if (!levels.length || !dashboard) return null;
+  const id = dashboard.profile?.current_level_id || (dashboard.profile?.highest_level_reached + 1) || 1;
+  return levels.find(l => l.id === id);
+}
+
+function nextLevelToOpen() {
+  if (!levels.length || !dashboard) return null;
+  const highest = dashboard.profile?.highest_level_reached || 0;
+  return levels.find(l => l.id === highest + 1);
+}
+
+// ---------- HOME ----------
+function renderHome() {
+  const lvl = currentLevel();
+  const room = dashboard.open_room;
+  const balance = dashboard.profile?.key_balance ?? 0;
+
+  let cta = '', stageCard = '';
+
+  if (!room) {
+    // нет открытой комнаты — нужно её открыть
+    const next = nextLevelToOpen();
+    if (!next) {
+      stageCard = `<div class="stage-card"><span class="badge">Финал</span><div class="stage-title">Ты прошёл OASIS</div><div class="small">Все 12 ступеней закрыты.</div></div>`;
+    } else {
+      const canOpen = balance >= next.open_cost;
+      stageCard = `<div class="stage-card">
+        <span class="badge">Следующая жизнь</span>
+        <div class="stage-title">${next.name}</div>
+        <div class="small">Открой уровень, чтобы пригласить 5 жителей и подняться выше.</div>
+        <div class="progress-row"><b>Стоимость: ${next.open_cost} KEY</b><span class="small">награда за закрытие: ${next.close_reward}</span></div>
+      </div>`;
+      cta = `<div class="actions">
+        <button class="btn" ${canOpen?'':'disabled'} onclick="actOpenRoom(${next.id})">
+          ${canOpen ? `Открыть «${next.name}» за ${next.open_cost} KEY` : `Нужно ещё ${next.open_cost - balance} KEY`}
+        </button>
+      </div>`;
+    }
+  } else {
+    // открытая комната
+    const filled = room.filled || 0;
+    const slots = room.slots || [];
+    const lvlInfo = levels.find(l=>l.id===room.level_id) || {};
+    stageCard = `<div class="stage-card">
+      <span class="badge">${STAGE_TITLE[LEVEL_STAGE[room.level_id]]} · текущий</span>
+      <div class="stage-title">${lvlInfo.name || 'Уровень ' + room.level_id}</div>
+      <div class="small">Заполни 5 мест — закроется уровень.</div>
+      <div class="progress-row"><b>${filled}/5 мест</b><span class="small">${filled>=5?'готов закрыть':`до перехода: ${5-filled}`}</span></div>
+      <div class="progress"><i style="width:${filled*20}%"></i></div>
+    </div>`;
+
+    cta = `<div class="actions ${filled>=5?'':'row2'}">
+      ${filled>=5
+        ? `<button class="btn" onclick="actCloseLevel(${room.level_id})">Закрыть уровень · +${lvlInfo.close_reward||0} KEY</button>`
+        : `<button class="btn" onclick="setTab('invite')">Пригласить жителя</button>
+           <button class="btn secondary" onclick="setTab('path')">Открыть путь</button>`}
+    </div>`;
+
+    stageCard += `<div class="card"><div class="card-head"><h3>5 мест уровня</h3><span class="status ${filled>=5?'good':'warn'}">${filled>=5?'готов закрыть':'в процессе'}</span></div>
+      <div class="list">${slots.map(s => slotRow(s)).join('')}</div></div>`;
+  }
+
+  return `${topLine()}${stageCard}${cta}
+    <div class="card">
+      <h3>Твой прогресс</h3>
+      <div class="grid2">
+        <div class="metric"><span>Достиг уровня</span><b>${dashboard.profile?.highest_level_reached || 0} / 12</b></div>
+        <div class="metric"><span>Всего рефералов</span><b>${dashboard.profile?.total_referrals || 0}</b></div>
+        <div class="metric"><span>Закрыто уровней</span><b>${dashboard.levels_completed || 0}</b></div>
+        <div class="metric"><span>В очереди (pending)</span><b>${dashboard.pending_referrals || 0}</b></div>
+      </div>
+      ${dashboard.pending_referrals > 0 ? `<div class="notice">У тебя ${dashboard.pending_referrals} приглашённых, которые ждут открытия следующей комнаты. Они автоматически займут места.</div>` : ''}
+    </div>`;
+}
+
+function slotRow(s) {
+  const filled = s.filled;
+  const u = s.user;
+  return `<div class="slot-row ${filled?'filled':''}">
+    <div class="slot-num">${filled ? '✓' : (s.slot_index+1)}</div>
+    <div class="slot-body">
+      <b>${filled ? (u.first_name || u.username || 'Житель') : 'Свободное место'}</b>
+      <span>${filled ? (u.username ? '@'+u.username : 'активен') : 'пригласи друга по ссылке'}</span>
+    </div>
+    <span class="status ${filled?'good':'lock'}">${filled?'активен':'место '+(s.slot_index+1)}</span>
+  </div>`;
+}
+
+// ---------- PATH ----------
+function renderPath() {
+  const highest = dashboard.profile?.highest_level_reached || 0;
+  const currentId = dashboard.open_room?.level_id;
+  return `${topLine()}
+    <div class="card">
+      <h3>Путь уровня жизни</h3>
+      <p>12 ступеней. Открой следующую — и поднимешься выше.</p>
+    </div>
+    <div class="level-list">${levels.map(l => {
+      const cls = l.id <= highest ? 'done' : (l.id === currentId ? 'current' : '');
+      const stage = LEVEL_STAGE[l.id];
+      return `<div class="level ${cls}">
+        <div class="num">${l.id}</div>
+        <div class="lvl-body">
+          <strong>${l.name}</strong>
+          <div class="small">${STAGE_TITLE[stage]} · ${l.open_cost} KEY → ${l.close_reward} KEY</div>
+        </div>
+        <span class="status ${cls==='done'?'good':cls==='current'?'warn':'lock'}">${cls==='done'?'открыто':cls==='current'?'текущий':'закрыто'}</span>
+      </div>`;
+    }).join('')}</div>`;
+}
+
+// ---------- INVITE ----------
+function renderInvite() {
+  const refCode = dashboard.user?.ref_code || '';
+  const refLink = `https://t.me/${botUsername}?start=ref_${refCode}`;
+  return `${topLine()}
+    <div class="card">
+      <h3>Главная механика роста</h3>
+      <p>Каждый житель, перешедший по твоей ссылке, занимает место в твоей текущей комнате.</p>
+      <div class="linkbox">
+        <code id="refLink">${refLink}</code>
+        <button onclick="copyRef('${refLink}')">копия</button>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="shareRef('${refLink}')">Поделиться</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Мой круг</h3><span class="status good">${circle.length}</span></div>
+      <div class="list">
+        ${circle.length === 0 ? `<div class="small" style="padding:20px;text-align:center">Пока никто не присоединился.<br>Поделись ссылкой — будут.</div>` :
+        circle.map(c => `<div class="slot-row filled">
+          <div class="slot-num">${(c.first_name||'?').charAt(0).toUpperCase()}</div>
+          <div class="slot-body">
+            <b>${c.first_name || c.username || 'Житель'}</b>
+            <span>${c.current_level_name ? 'на уровне «' + c.current_level_name + '»' : c.pending ? 'ожидает места' : 'активен'}</span>
+          </div>
+          <span class="status ${c.pending?'warn':'good'}">${c.pending?'в очереди':'занял место'}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ---------- BONUS ----------
+function renderBonus() {
+  const bonuses = [
+    ['⚡', 'Автозаполнение', 'Занимает 1 свободное место', 8],
+    ['🛡', 'Страховка', 'Защищает прогресс уровня', 12],
+    ['🚀', 'Ускоритель', 'Ускоряет переход', 14],
+    ['👑', 'Приоритет', 'Выше в очереди автозаполнения', 18],
+  ];
+  return `${topLine()}
+    <div class="card">
+      <h3>Бонусы</h3>
+      <p>Помогают двигаться быстрее. Покупаются за KEY.</p>
+    </div>
+    <div class="list" style="margin-top:10px">
+      ${bonuses.map(b => `<div class="bonus-row">
+        <div class="bonus-icon">${b[0]}</div>
+        <div style="flex:1">
+          <b style="font-size:14px">${b[1]}</b>
+          <div class="small">${b[2]}</div>
+        </div>
+        <span class="status lock">${b[3]} KEY</span>
+      </div>`).join('')}
+    </div>
+    <div class="notice">Бонусы появятся в следующем обновлении. Сейчас тестируем основную механику уровней.</div>`;
+}
+
+// ---------- CABINET ----------
+function renderCabinet() {
+  const p = dashboard.profile || {};
+  const refCode = dashboard.user?.ref_code || '';
+  return `${topLine()}
+    <div class="card">
+      <div class="card-head"><h3>Личный кабинет</h3><span class="status good">активен</span></div>
+      <div class="grid2">
+        <div class="metric"><span>Текущий уровень</span><b>${currentLevel()?.name || '—'}</b></div>
+        <div class="metric"><span>Достиг</span><b>${p.highest_level_reached || 0} / 12</b></div>
+        <div class="metric"><span>Рефералов</span><b>${p.total_referrals || 0}</b></div>
+        <div class="metric"><span>В игру переведено</span><b>${p.transferred_to_game || 0}</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Вывод в игру</h3><span class="status warn">админ подтверждает</span></div>
+      <p>Мы переводим токены в игру. После подтверждения в игре начисляются KEY/игровые токены.</p>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn" onclick="openGameDeposit()">Создать перевод</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Реферальная ссылка</h3>
+      <div class="linkbox">
+        <code>https://t.me/${botUsername}?start=ref_${refCode}</code>
+        <button onclick="copyRef('https://t.me/${botUsername}?start=ref_${refCode}')">копия</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>История</h3>
+      <div class="tx-list">
+        ${txs.length === 0 ? `<div class="small" style="padding:14px;text-align:center">Пока нет операций</div>` :
+        txs.slice(0,10).map(t => `<div class="tx">
+          <div class="tx-info"><b>${reasonLabel(t.reason)}</b><span>${formatDate(t.created_at)}</span></div>
+          <div class="tx-amt ${t.amount>=0?'pos':'neg'}">${t.amount>=0?'+':''}${t.amount}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function reasonLabel(r) {
+  return {
+    'welcome_bonus':'Стартовый бонус',
+    'open_room':'Открытие комнаты',
+    'close_level':'Закрытие уровня',
+    'gm_grant':'Начисление GM',
+    'transfer_to_game':'Перевод в игру',
+    'quest_reward':'Награда за квест',
+  }[r] || r;
+}
+
+function formatDate(s) {
+  const d = new Date(s);
+  return d.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+// ============================================================
+// Actions
+// ============================================================
+async function actOpenRoom(levelId) {
+  try {
+    tg?.HapticFeedback?.impactOccurred('light');
+    await sbRpc('open_room', { p_level_id: levelId });
+    showToast('Уровень открыт');
+    await refresh();
+  } catch (e) {
+    showToast('Не получилось: ' + parseErr(e.message));
+  }
+}
+
+async function actCloseLevel(levelId) {
+  try {
+    tg?.HapticFeedback?.notificationOccurred('success');
+    const res = await sbRpc('close_level', { p_level_id: levelId });
+    showToast(`Уровень закрыт! +${res.reward || ''} KEY`);
+    await refresh();
+  } catch (e) {
+    showToast('Не получилось: ' + parseErr(e.message));
+  }
+}
+
+async function actTransferToGame(amount) {
+  try {
+    await sbRpc('transfer_to_game', { p_amount: amount });
+    showToast(`Заявка создана: ${amount} KEY`);
+    closeModal();
+    await refresh();
+  } catch (e) {
+    showToast('Не получилось: ' + parseErr(e.message));
+  }
+}
+
+function parseErr(msg) {
+  if (msg.includes('insufficient KEY')) return 'недостаточно KEY';
+  if (msg.includes('locked')) return 'уровень ещё закрыт';
+  if (msg.includes('already exists')) return 'уже открыто';
+  if (msg.includes('not enough filled')) return 'нужно 5 жителей';
+  return msg.split('\n')[0].slice(0,100);
+}
+
+// ============================================================
+// UI helpers
+// ============================================================
+function copyRef(url) {
+  navigator.clipboard?.writeText(url);
+  tg?.HapticFeedback?.notificationOccurred('success');
+  showToast('Ссылка скопирована');
+}
+
+function shareRef(url) {
+  const text = `Я открыл новый уровень в OASIS. Присоединяйся → ${url}`;
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+  } else {
+    copyRef(url);
+  }
+}
+
+function openOnboarding() {
+  openModal('Как играть', `
+    <p style="color:#b6c5d6;line-height:1.5;font-size:13px">12 ступеней жизни — от Хостела до Оазиса. Поднимайся выше за счёт приглашённых жителей.</p>
+    <div class="list" style="margin-top:14px;gap:8px">
+      <div class="row"><div><strong>1. Открой уровень</strong><span class="small">за KEY из баланса</span></div></div>
+      <div class="row"><div><strong>2. Пригласи 5 жителей</strong><span class="small">по своей реф-ссылке</span></div></div>
+      <div class="row"><div><strong>3. Закрой уровень</strong><span class="small">получи награду KEY</span></div></div>
+      <div class="row"><div><strong>4. Открой следующую жизнь</strong><span class="small">Студия → Вилла → Оазис</span></div></div>
+    </div>`);
+}
+
+function openGameDeposit() {
+  const max = dashboard.profile?.key_balance || 0;
+  openModal('Перевод в игру', `
+    <p style="color:#b6c5d6;line-height:1.5;font-size:13px">Мы переводим токены в игру. После подтверждения админом в игре начисляются KEY/игровые токены.</p>
+    <div class="field">
+      <label>Сумма (макс. ${max} KEY)</label>
+      <input id="depositAmount" type="number" value="${Math.min(50,max)}" min="1" max="${max}">
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn" onclick="actTransferToGame(parseInt(document.getElementById('depositAmount').value)||0)">Создать заявку</button>
+    </div>`);
+}
+
+function openModal(title, html) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+}
+
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function renderNav() {
+  document.getElementById('nav').innerHTML = tabs.map(([id,ico,label]) =>
+    `<button data-tab="${id}" onclick="setTab('${id}')">${ico}<span>${label}</span></button>`).join('');
+}
+
+// ============================================================
+// Boot
+// ============================================================
+function showError(title, details) {
+  document.getElementById('content').innerHTML = `
+    <div class="error-screen">
+      <h2>${title}</h2>
+      <p>${details}</p>
+      <div class="actions" style="margin-top:24px">
+        <button class="btn" onclick="location.reload()">Перезагрузить</button>
+        <button class="btn secondary" onclick="navigator.clipboard?.writeText('${(details||'').replace(/'/g,'')}'); showToast('Скопировано')">Скопировать ошибку</button>
+      </div>
+    </div>`;
+}
+
+(async () => {
+  renderNav();
+
+  // 1. Проверяем что открыто в Telegram
+  if (!tg) {
+    showError(
+      'Открой через бота',
+      'Mini App работает только внутри Telegram. Открой @RSroom_bot и нажми кнопку "Открыть игру" в меню.'
+    );
+    return;
+  }
+  if (!tg.initData || tg.initData.length === 0) {
+    showError(
+      'Нет данных Telegram',
+      'initData пустой. Возможно бот не настроен как Mini App в @BotFather → Menu Button. Или открыто не через кнопку меню.'
+    );
+    return;
+  }
+
+  // 2. Auth
+  try {
+    auth = await apiAuth();
+  } catch (e) {
+    showError('Ошибка авторизации', e.message + '\n\nПроверь логи Railway и переменную SUPABASE_JWT_SECRET.');
+    return;
+  }
+  if (auth?.bot_username) botUsername = auth.bot_username;
+
+  // 3. Welcome bonus toast
+  if (auth.new_user) {
+    setTimeout(() => showToast(`+${auth.welcome_bonus} KEY стартовый бонус`), 600);
+  }
+
+  // 4. Загрузка данных
+  try {
+    await refresh();
+  } catch (e) {
+    showError('Ошибка загрузки данных', e.message + '\n\nПроверь RLS политики и что юзер создан.');
+    return;
+  }
+})();
+</script>
+</body>
+</html>
