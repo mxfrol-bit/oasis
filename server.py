@@ -69,11 +69,21 @@ async def auth(request: web.Request) -> web.Response:
 
     tg_id = int(tg_user["id"])
     ref_code = payload.get("ref_code")
-    # ref-код может прийти и из start_param (deeplink)
+    target_level_id = payload.get("target_level_id")
+
+    # ref-код может прийти и из start_param (deeplink): ref_XXX или ref_XXXL<level>
     if not ref_code:
         start_param = parsed.get("start_param") or ""
         if start_param.startswith("ref_"):
-            ref_code = start_param[4:]
+            tail = start_param[4:].upper()
+            import re as _re
+            m = _re.fullmatch(r"([A-Z2-9]{4,12})(?:L(\d{1,2}))?", tail)
+            if m:
+                ref_code = m.group(1)
+                if m.group(2) and target_level_id is None:
+                    lvl = int(m.group(2))
+                    if 1 <= lvl <= 12:
+                        target_level_id = lvl
 
     reg = await register_user(
         telegram_id=tg_id,
@@ -83,6 +93,7 @@ async def auth(request: web.Request) -> web.Response:
         photo_url=tg_user.get("photo_url"),
         language_code=tg_user.get("language_code") or "ru",
         ref_code=ref_code,
+        target_level_id=target_level_id,
     )
 
     jwt_token = issue_jwt(tg_id)

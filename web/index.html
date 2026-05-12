@@ -433,6 +433,119 @@ function renderCity() {
 
 // ---------- HOME ----------
 function renderHome() {
+  const profile = dashboard.profile || {};
+  const balance = profile.key_balance ?? 0;
+  const rooms = dashboard.open_rooms || [];
+  const pending = dashboard.pending_by_level || [];
+  const completed = profile.completed_rooms_count || 0;
+  const milestoneActive = completed >= 5 && profile.milestone_5_paid;
+  const milestoneProgress = Math.min(completed, 5);
+
+  // Pending alerts: рефералы ждут открытия комнат
+  const pendingBanner = pending.length === 0 ? '' :
+    pending.map(p => `<div class="notice" style="margin-bottom:8px;border-color:rgba(255,217,122,.3);background:rgba(255,217,122,.06)">
+      ⏳ <b>${p.count}</b> ${p.count === 1 ? 'житель ждёт' : 'жителей ждут'} открытия <b>«${p.level_name || 'уровня ' + p.level_id}»</b>. Осталось ${Math.max(0, Math.floor(p.days_left))} дн.
+      <div style="margin-top:6px"><button class="btn" style="padding:8px 12px;font-size:12px" onclick="actOpenRoom(${p.level_id})">${balance >= p.open_cost ? `Открыть за ${p.open_cost} KEY` : `Нужно ${p.open_cost} KEY`}</button></div>
+    </div>`).join('');
+
+  return `${topLine()}
+    ${pendingBanner}
+
+    <div class="card">
+      <div class="card-head">
+        <h3>Мои уровни</h3>
+        <span class="status ${rooms.length > 0 ? 'good' : 'lock'}">${rooms.length} открыто</span>
+      </div>
+      ${rooms.length === 0 ? `
+        <p style="color:var(--muted);font-size:13px;margin-bottom:10px">Открой первый уровень, чтобы начать собирать жителей.</p>
+        <div class="actions"><button class="btn full" onclick="openLevelPicker()">Открыть уровень</button></div>
+      ` : rooms.map(r => roomCard(r)).join('') + `
+        <div class="actions" style="margin-top:10px"><button class="btn full secondary" onclick="openLevelPicker()">＋ Открыть ещё уровень</button></div>
+      `}
+    </div>
+
+    <div class="card">
+      <h3>Бонус за 5 закрытых комнат</h3>
+      <p>Закрой ${5 - milestoneProgress > 0 ? `ещё ${5 - milestoneProgress}` : '5'} комнат — получишь <b>+2000 KEY</b> на баланс.</p>
+      <div class="progress" style="margin-top:10px"><i style="width:${milestoneProgress * 20}%"></i></div>
+      <div class="progress-row" style="margin-top:6px"><b>${milestoneProgress}/5</b><span class="small">${milestoneActive ? '✓ выплачено' : 'идёт счёт'}</span></div>
+    </div>
+
+    <div class="card">
+      <div class="grid2">
+        <div class="metric"><span>Баланс</span><b>${balance}</b></div>
+        <div class="metric"><span>Закрыто комнат</span><b>${completed}</b></div>
+        <div class="metric"><span>Рефералов всего</span><b>${profile.total_referrals || 0}</b></div>
+        <div class="metric"><span>Открыто сейчас</span><b>${rooms.length}</b></div>
+      </div>
+    </div>`;
+}
+
+function roomCard(r) {
+  const stage = LEVEL_STAGE[r.level_id] || 'hostel';
+  const canClose = (r.filled || 0) >= 5;
+  return `<div class="stage-card" style="margin-bottom:10px;padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+      <div>
+        <span class="badge">${STAGE_TITLE[stage]} · ${r.level_name}</span>
+        <div style="font-size:18px;font-weight:800;margin-top:4px">${r.level_name}${r.room_seq > 1 ? ' #' + r.room_seq : ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:800;font-variant-numeric:tabular-nums">${r.filled}/5</div>
+        <div class="small" style="color:var(--muted)">${canClose ? 'готов закрыть' : 'до перехода: ' + (5-r.filled)}</div>
+      </div>
+    </div>
+    <div class="progress" style="margin:8px 0 10px"><i style="width:${(r.filled||0)*20}%;background:linear-gradient(90deg,#5be7ff,#9d69ff)"></i></div>
+    <div class="list" style="gap:4px;margin-bottom:10px">
+      ${(r.slots || []).map(s => `<div class="slot-row ${s.filled?'filled':''}" style="padding:7px 10px">
+        <div class="slot-num" style="width:22px;height:22px;font-size:11px">${s.filled ? (s.is_self_bought ? '$' : '✓') : (s.slot_index+1)}</div>
+        <div class="slot-body" style="font-size:12px">
+          <b>${s.filled ? (s.user?.first_name || s.user?.username || 'Житель') : 'Свободно'}</b>
+          <span>${s.filled ? (s.is_self_bought ? 'выкуплено собой' : 'активен') : 'пригласи или выкупи'}</span>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="actions row2" style="margin-top:8px">
+      ${canClose
+        ? `<button class="btn" onclick="actCloseRoom('${r.id}')">Закрыть · +${r.close_reward} KEY</button>
+           <button class="btn secondary" onclick="copyRoomLink(${r.level_id})">Ссылка на комнату</button>`
+        : `<button class="btn" onclick="actBuySlot('${r.id}', ${r.open_cost})">Купить слот · ${r.open_cost} KEY</button>
+           <button class="btn secondary" onclick="copyRoomLink(${r.level_id})">Ссылка на комнату</button>`}
+    </div>
+  </div>`;
+}
+
+function openLevelPicker() {
+  if (!levels.length) return;
+  const balance = dashboard.profile?.key_balance ?? 0;
+  openModal('Открыть уровень', `
+    <p style="color:#b6c5d6;font-size:13px;margin-bottom:14px">Выбери уровень. Можешь открыть несколько одновременно — каждый собирает свои 5 жителей.</p>
+    <div class="list" style="gap:6px;max-height:60vh;overflow-y:auto">
+    ${levels.map(l => {
+      const can = balance >= l.open_cost;
+      return `<div class="row" style="cursor:${can?'pointer':'not-allowed'};opacity:${can?1:.45}" ${can?`onclick="closeModal();actOpenRoom(${l.id})"`:''}>
+        <div>
+          <strong>${l.name}</strong>
+          <span class="small">${STAGE_TITLE[LEVEL_STAGE[l.id]]} · награда ${l.close_reward}</span>
+        </div>
+        <span class="status ${can?'good':'lock'}">${l.open_cost} KEY</span>
+      </div>`;
+    }).join('')}
+    </div>
+    ${balance < 500 ? '<div class="notice" style="margin-top:12px">Не хватает KEY даже на Хостел I. Получи welcome-бонус или жди закрытия рефералов.</div>' : ''}
+  `);
+}
+
+function copyRoomLink(levelId) {
+  const code = dashboard.user?.ref_code || '';
+  const link = `https://t.me/${botUsername}?start=ref_${code}L${levelId}`;
+  navigator.clipboard?.writeText(link);
+  tg?.HapticFeedback?.notificationOccurred('success');
+  showToast(`Ссылка на «${levels.find(l=>l.id===levelId)?.name}» скопирована`);
+}
+
+// ---------- HOME (old, kept for fallback) ----------
+function _renderHomeLegacy() {
   const lvl = currentLevel();
   const room = dashboard.open_room;
   const balance = dashboard.profile?.key_balance ?? 0;
@@ -511,22 +624,22 @@ function slotRow(s) {
 // ---------- PATH ----------
 function renderPath() {
   const highest = dashboard.profile?.highest_level_reached || 0;
-  const currentId = dashboard.open_room?.level_id;
+  const openLevelIds = new Set((dashboard.open_rooms || []).map(r => r.level_id));
   return `${topLine()}
     <div class="card">
       <h3>Путь уровня жизни</h3>
-      <p>12 ступеней. Открой следующую — и поднимешься выше.</p>
+      <p>12 ступеней. Открывай любые, в любом порядке.</p>
     </div>
     <div class="level-list">${levels.map(l => {
-      const cls = l.id <= highest ? 'done' : (l.id === currentId ? 'current' : '');
+      const cls = openLevelIds.has(l.id) ? 'current' : (l.id <= highest ? 'done' : '');
       const stage = LEVEL_STAGE[l.id];
-      return `<div class="level ${cls}">
+      return `<div class="level ${cls}" onclick="closeModal();actOpenRoom(${l.id})" style="cursor:pointer">
         <div class="num">${l.id}</div>
         <div class="lvl-body">
           <strong>${l.name}</strong>
           <div class="small">${STAGE_TITLE[stage]} · ${l.open_cost} KEY → ${l.close_reward} KEY</div>
         </div>
-        <span class="status ${cls==='done'?'good':cls==='current'?'warn':'lock'}">${cls==='done'?'открыто':cls==='current'?'текущий':'закрыто'}</span>
+        <span class="status ${cls==='done'?'good':cls==='current'?'warn':'lock'}">${cls==='done'?'закрыто'+(openLevelIds.has(l.id)?' (есть открытая)':''):cls==='current'?'идёт':'открыть'}</span>
       </div>`;
     }).join('')}</div>`;
 }
@@ -534,19 +647,37 @@ function renderPath() {
 // ---------- INVITE ----------
 function renderInvite() {
   const refCode = dashboard.user?.ref_code || '';
-  const refLink = `https://t.me/${botUsername}?start=ref_${refCode}`;
+  const rooms = dashboard.open_rooms || [];
+  const baseLink = `https://t.me/${botUsername}?start=ref_${refCode}`;
   return `${topLine()}
     <div class="card">
-      <h3>Главная механика роста</h3>
-      <p>Каждый житель, перешедший по твоей ссылке, занимает место в твоей текущей комнате.</p>
+      <h3>Реф-ссылка (общая)</h3>
+      <p>Друг попадёт в твою первую открытую комнату любого уровня.</p>
       <div class="linkbox">
-        <code id="refLink">${refLink}</code>
-        <button onclick="copyRef('${refLink}')">копия</button>
+        <code>${baseLink}</code>
+        <button onclick="copyRef('${baseLink}')">копия</button>
       </div>
-      <div class="actions">
-        <button class="btn" onclick="shareRef('${refLink}')">Поделиться</button>
-      </div>
+      <div class="actions"><button class="btn" onclick="shareRef('${baseLink}')">Поделиться</button></div>
     </div>
+
+    ${rooms.length > 0 ? `
+    <div class="card">
+      <h3>Ссылки на конкретные комнаты</h3>
+      <p>Друг попадёт сразу в выбранную тобой комнату.</p>
+      <div class="list" style="margin-top:10px">
+        ${rooms.map(r => {
+          const link = `${baseLink}L${r.level_id}`;
+          return `<div class="row">
+            <div>
+              <strong>${r.level_name}${r.room_seq>1?' #'+r.room_seq:''}</strong>
+              <span class="small">${r.filled}/5 · вход ${r.open_cost} KEY</span>
+            </div>
+            <button class="btn secondary" style="padding:6px 11px;font-size:12px" onclick="copyRoomLink(${r.level_id})">копия</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+
     <div class="card">
       <div class="card-head"><h3>Мой круг</h3><span class="status good">${circle.length}</span></div>
       <div class="list">
@@ -597,12 +728,17 @@ function renderCabinet() {
     <div class="card">
       <div class="card-head"><h3>Личный кабинет</h3><span class="status good">активен</span></div>
       <div class="grid2">
-        <div class="metric"><span>Текущий уровень</span><b>${currentLevel()?.name || '—'}</b></div>
-        <div class="metric"><span>Достиг</span><b>${p.highest_level_reached || 0} / 12</b></div>
+        <div class="metric"><span>Баланс</span><b>${p.key_balance || 0}</b></div>
+        <div class="metric"><span>Закрыто комнат</span><b>${p.completed_rooms_count || 0}</b></div>
         <div class="metric"><span>Рефералов</span><b>${p.total_referrals || 0}</b></div>
         <div class="metric"><span>В игру переведено</span><b>${p.transferred_to_game || 0}</b></div>
       </div>
     </div>
+    ${(p.completed_rooms_count || 0) >= 5 && p.milestone_5_paid ? `
+    <div class="card" style="background:linear-gradient(135deg,rgba(255,217,122,.15),rgba(157,105,255,.10));border-color:rgba(255,217,122,.30)">
+      <h3>🏆 Бонус 5 комнат получен</h3>
+      <p>+2000 KEY уже на твоём балансе.</p>
+    </div>` : ''}
     <div class="card">
       <div class="card-head"><h3>Вывод в игру</h3><span class="status warn">админ подтверждает</span></div>
       <p>Мы переводим токены в игру. После подтверждения в игре начисляются KEY/игровые токены.</p>
@@ -611,17 +747,10 @@ function renderCabinet() {
       </div>
     </div>
     <div class="card">
-      <h3>Реферальная ссылка</h3>
-      <div class="linkbox">
-        <code>https://t.me/${botUsername}?start=ref_${refCode}</code>
-        <button onclick="copyRef('https://t.me/${botUsername}?start=ref_${refCode}')">копия</button>
-      </div>
-    </div>
-    <div class="card">
       <h3>История</h3>
       <div class="tx-list">
         ${txs.length === 0 ? `<div class="small" style="padding:14px;text-align:center">Пока нет операций</div>` :
-        txs.slice(0,10).map(t => `<div class="tx">
+        txs.slice(0,15).map(t => `<div class="tx">
           <div class="tx-info"><b>${reasonLabel(t.reason)}</b><span>${formatDate(t.created_at)}</span></div>
           <div class="tx-amt ${t.amount>=0?'pos':'neg'}">${t.amount>=0?'+':''}${t.amount}</div>
         </div>`).join('')}
@@ -633,9 +762,11 @@ function reasonLabel(r) {
   return {
     'welcome_bonus':'Стартовый бонус',
     'open_room':'Открытие комнаты',
-    'close_level':'Закрытие уровня',
+    'close_level':'Закрытие комнаты',
+    'milestone_5_rooms':'Бонус за 5 комнат',
     'gm_grant':'Начисление GM',
     'transfer_to_game':'Перевод в игру',
+    'buy_slot':'Выкуп слота',
     'quest_reward':'Награда за квест',
   }[r] || r;
 }
@@ -664,6 +795,35 @@ async function actCloseLevel(levelId) {
     tg?.HapticFeedback?.notificationOccurred('success');
     const res = await sbRpc('close_level', { p_level_id: levelId });
     showToast(`Уровень закрыт! +${res.reward || ''} KEY`);
+    if (res.milestone_bonus > 0) {
+      setTimeout(() => showToast(`🏆 +${res.milestone_bonus} KEY бонус за 5 комнат!`), 1500);
+    }
+    await refresh();
+  } catch (e) {
+    showToast('Не получилось: ' + parseErr(e.message));
+  }
+}
+
+async function actCloseRoom(roomId) {
+  try {
+    tg?.HapticFeedback?.notificationOccurred('success');
+    const res = await sbRpc('close_room', { p_room_id: roomId });
+    showToast(`Комната закрыта! +${res.reward || ''} KEY`);
+    if (res.milestone_bonus > 0) {
+      setTimeout(() => showToast(`🏆 +${res.milestone_bonus} KEY бонус за 5 комнат!`), 1500);
+    }
+    await refresh();
+  } catch (e) {
+    showToast('Не получилось: ' + parseErr(e.message));
+  }
+}
+
+async function actBuySlot(roomId, cost) {
+  if (!confirm(`Выкупить место за ${cost} KEY? Слот заполнится тобой.`)) return;
+  try {
+    tg?.HapticFeedback?.impactOccurred('medium');
+    await sbRpc('buy_slot', { p_room_id: roomId });
+    showToast(`Слот выкуплен · −${cost} KEY`);
     await refresh();
   } catch (e) {
     showToast('Не получилось: ' + parseErr(e.message));

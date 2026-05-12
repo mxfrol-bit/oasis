@@ -54,6 +54,7 @@ async def register_user(
     photo_url: str | None,
     language_code: str,
     ref_code: str | None,
+    target_level_id: int | None = None,
 ) -> dict[str, Any]:
     return await rpc(
         "register_user",
@@ -65,6 +66,7 @@ async def register_user(
             "p_photo_url": photo_url,
             "p_language_code": language_code,
             "p_ref_code": ref_code,
+            "p_target_level_id": target_level_id,
         },
     )
 

@@ -21,16 +21,33 @@ REF_PREFIX = "ref_"
 MINIAPP_URL = os.environ.get("PUBLIC_URL", "https://example.com")
 
 
-def parse_ref_code(payload: str | None) -> str | None:
+def parse_ref_payload(payload: str | None) -> tuple[str | None, int | None]:
+    """Парсит start_param. Форматы:
+      - 'ref_XXXXXXX'       → (XXXXXXX, None)
+      - 'ref_XXXXXXXL5'     → (XXXXXXX, 5)
+      - 'XXXXXXX'           → (XXXXXXX, None)
+    Возвращает (ref_code, target_level_id) или (None, None) если невалидно.
+    """
     if not payload:
-        return None
+        return (None, None)
     payload = payload.strip()
     if payload.startswith(REF_PREFIX):
-        code = payload[len(REF_PREFIX):]
-    else:
-        code = payload
-    # ref-коды у нас — 7 символов A-Z + цифры (без I/O/0/1)
-    return code.upper() if re.fullmatch(r"[A-Z2-9]{4,12}", code) else None
+        payload = payload[len(REF_PREFIX):]
+    payload = payload.upper()
+    m = re.fullmatch(r"([A-Z2-9]{4,12})(?:L(\d{1,2}))?", payload)
+    if not m:
+        return (None, None)
+    code = m.group(1)
+    lvl = int(m.group(2)) if m.group(2) else None
+    if lvl is not None and not (1 <= lvl <= 12):
+        lvl = None
+    return (code, lvl)
+
+
+# обратная совместимость со старым именем
+def parse_ref_code(payload: str | None) -> str | None:
+    code, _ = parse_ref_payload(payload)
+    return code
 
 
 def play_keyboard() -> InlineKeyboardMarkup:
@@ -48,16 +65,17 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
     if not user:
         return
 
-    ref_code = parse_ref_code(command.args)
+    ref_code, target_level_id = parse_ref_payload(command.args)
 
     result = await register_user(
         telegram_id=user.id,
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
-        photo_url=None,  # достанем через getUserProfilePhotos позже если нужно
+        photo_url=None,
         language_code=user.language_code or "ru",
         ref_code=ref_code,
+        target_level_id=target_level_id,
     )
 
     if result.get("already_exists"):
