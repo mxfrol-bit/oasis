@@ -208,11 +208,18 @@ async function boot() {
   try {
     await refreshAll();
   } catch (e) {
-    if (e.message.includes('401') || e.message.includes('PGRST')) {
+    // Только эти коды значат что JWT реально невалиден:
+    // - HTTP 401 (Unauthorized) — токен битый/не подписан
+    // - PGRST301 — JWT expired
+    // - PGRST302 — JWT invalid signature
+    const msg = e.message || '';
+    const isAuthError = msg.includes('401') || msg.includes('PGRST301') || msg.includes('PGRST302');
+    if (isAuthError) {
       localStorage.removeItem('oasis-admin-jwt');
       showError('Токен истёк или невалиден', 'Запроси новую ссылку через /admin в боте.\n\n' + e.message);
       return;
     }
+    // Любая другая PostgREST/RLS ошибка — это баг в запросе или БД, не auth
     showError('Ошибка загрузки', e.message);
     return;
   }
@@ -266,7 +273,8 @@ async function loadUserTxs(userId) {
 }
 
 async function loadPendingRequests() {
-  pendingRequests = await sb('key_requests?select=*,users!inner(first_name,username,telegram_id)&status=eq.pending&order=created_at.asc');
+  // указываем FK явно — у key_requests два связи с users (user_id и processed_by)
+  pendingRequests = await sb('key_requests?select=*,users!key_requests_user_id_fkey(first_name,username,telegram_id)&status=eq.pending&order=created_at.asc');
 }
 
 async function refreshAll() {
