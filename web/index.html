@@ -589,21 +589,46 @@ function roomCard(r) {
 function openLevelPicker() {
   if (!levels.length) return;
   const balance = dashboard.profile?.key_balance ?? 0;
+  const hasActiveReq = !!dashboard.my_active_request;
   openModal('Открыть уровень', `
     <p style="color:#b6c5d6;font-size:13px;margin-bottom:14px">Выбери уровень. Можешь открыть несколько одновременно — каждый собирает свои 5 жителей.</p>
     <div class="list" style="gap:6px;max-height:60vh;overflow-y:auto">
     ${levels.map(l => {
       const can = balance >= l.open_cost;
-      return `<div class="row" style="cursor:${can?'pointer':'not-allowed'};opacity:${can?1:.45}" ${can?`onclick="closeModal();actOpenRoom(${l.id})"`:''}>
+      const action = can
+        ? `onclick="closeModal();actOpenRoom(${l.id})"`
+        : (hasActiveReq ? '' : `onclick="closeModal();openKeyRequestFor(${l.open_cost}, '${l.name.replace(/'/g, '')}')"`);
+      const label = can ? `${l.open_cost} KEY` : (hasActiveReq ? `нужно ${l.open_cost - balance}` : `запросить ${l.open_cost - balance}`);
+      return `<div class="row" style="cursor:${can || !hasActiveReq?'pointer':'not-allowed'};opacity:${can?1:.55}" ${action}>
         <div>
           <strong>${l.name}</strong>
           <span class="small">${STAGE_TITLE[LEVEL_STAGE[l.id]]} · награда ${l.close_reward}</span>
         </div>
-        <span class="status ${can?'good':'lock'}">${l.open_cost} KEY</span>
+        <span class="status ${can?'good':'warn'}">${label}</span>
       </div>`;
     }).join('')}
     </div>
-    ${balance < 500 ? '<div class="notice" style="margin-top:12px">Не хватает KEY даже на Хостел I. Получи welcome-бонус или жди закрытия рефералов.</div>' : ''}
+    ${hasActiveReq ? '<div class="notice" style="margin-top:12px">У тебя уже есть активная заявка на пополнение — дождись её обработки.</div>' : ''}
+  `);
+}
+
+function openKeyRequestFor(amount, levelName) {
+  // открываем модалку запроса с предзаполненной суммой = open_cost уровня
+  const max = 50000;
+  const needed = Math.min(amount, max);
+  openModal('Запрос на пополнение KEY', `
+    <p style="color:#b6c5d6;font-size:13px;margin-bottom:10px">Запиши сколько KEY нужно — админ увидит и одобрит. Сумма для «${levelName}» уже подставлена.</p>
+    <div class="field">
+      <label>Сумма KEY</label>
+      <input id="reqAmount" type="number" value="${needed}" min="1" max="${max}" autofocus>
+    </div>
+    <div class="field">
+      <label>Причина</label>
+      <input id="reqReason" type="text" value="хочу открыть «${levelName}»">
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn" onclick="actCreateKeyRequest()">Отправить заявку</button>
+    </div>
   `);
 }
 
@@ -792,6 +817,7 @@ function renderBonus() {
 function renderCabinet() {
   const p = dashboard.profile || {};
   const refCode = dashboard.user?.ref_code || '';
+  const activeReq = dashboard.my_active_request;
   return `${topLine()}
     <div class="card">
       <div class="card-head"><h3>Личный кабинет</h3><span class="status good">активен</span></div>
@@ -802,11 +828,27 @@ function renderCabinet() {
         <div class="metric"><span>В игру переведено</span><b>${p.transferred_to_game || 0}</b></div>
       </div>
     </div>
+
     ${(p.completed_rooms_count || 0) >= 5 && p.milestone_5_paid ? `
     <div class="card" style="background:linear-gradient(135deg,rgba(255,217,122,.15),rgba(157,105,255,.10));border-color:rgba(255,217,122,.30)">
       <h3>🏆 Бонус 5 комнат получен</h3>
       <p>+2000 KEY уже на твоём балансе.</p>
     </div>` : ''}
+
+    <div class="card">
+      <div class="card-head"><h3>Запросить пополнение</h3>${activeReq ? '<span class="status warn">ожидает</span>' : ''}</div>
+      ${activeReq ? `
+        <p>Твоя заявка на <b>${activeReq.amount} KEY</b> отправлена админу.</p>
+        ${activeReq.reason ? `<p class="small" style="margin-top:6px">Причина: ${activeReq.reason}</p>` : ''}
+        <p class="small" style="margin-top:6px;color:var(--muted)">Создана: ${formatDate(activeReq.created_at)}</p>
+      ` : `
+        <p>Не хватает KEY на следующий уровень? Запроси у админа — пополнение придёт после одобрения.</p>
+        <div class="actions" style="margin-top:10px">
+          <button class="btn" onclick="openKeyRequest()">Создать заявку</button>
+        </div>
+      `}
+    </div>
+
     <div class="card">
       <div class="card-head"><h3>Вывод в игру</h3><span class="status warn">админ подтверждает</span></div>
       <p>Мы переводим токены в игру. После подтверждения в игре начисляются KEY/игровые токены.</p>
@@ -814,6 +856,7 @@ function renderCabinet() {
         <button class="btn" onclick="openGameDeposit()">Создать перевод</button>
       </div>
     </div>
+
     <div class="card">
       <h3>История</h3>
       <div class="tx-list">
@@ -826,6 +869,39 @@ function renderCabinet() {
     </div>`;
 }
 
+function openKeyRequest() {
+  const max = 50000;
+  openModal('Запрос на пополнение KEY', `
+    <p style="color:#b6c5d6;font-size:13px;margin-bottom:10px">Запиши сколько KEY нужно и зачем — админ увидит твою заявку и одобрит. Максимум за раз: ${max} KEY.</p>
+    <div class="field">
+      <label>Сумма KEY</label>
+      <input id="reqAmount" type="number" placeholder="например 1200" min="1" max="${max}" autofocus>
+    </div>
+    <div class="field">
+      <label>Причина (необязательно)</label>
+      <input id="reqReason" type="text" placeholder="хочу открыть Виллу">
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn" onclick="actCreateKeyRequest()">Отправить заявку</button>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('reqAmount')?.focus(), 100);
+}
+
+async function actCreateKeyRequest() {
+  const amount = parseInt(document.getElementById('reqAmount')?.value || '0', 10);
+  const reason = document.getElementById('reqReason')?.value?.trim() || null;
+  if (!amount || amount < 1) { showToast('Введи сумму'); return; }
+  try {
+    await sbRpc('create_key_request', { p_amount: amount, p_reason: reason });
+    showToast(`Заявка на ${amount} KEY отправлена`);
+    closeModal();
+    await refresh();
+  } catch (e) {
+    showToast('Не получилось: ' + parseErr(e.message));
+  }
+}
+
 function reasonLabel(r) {
   return {
     'welcome_bonus':'Стартовый бонус',
@@ -833,6 +909,7 @@ function reasonLabel(r) {
     'close_level':'Закрытие комнаты',
     'milestone_5_rooms':'Бонус за 5 комнат',
     'gm_grant':'Начисление GM',
+    'key_request':'Одобренная заявка',
     'transfer_to_game':'Перевод в игру',
     'buy_slot':'Выкуп слота',
     'quest_reward':'Награда за квест',

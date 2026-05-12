@@ -145,6 +145,7 @@ let users = [];       // user list
 let selectedUser = null;
 let userTxs = [];
 let recentTxs = [];
+let pendingRequests = []; // запросы на пополнение KEY
 let stats = { totalUsers: 0, totalKey: 0, totalRefs: 0, levelsClosed: 0 };
 let searchTimer = null;
 
@@ -264,9 +265,13 @@ async function loadUserTxs(userId) {
   userTxs = await sb(`transactions?user_id=eq.${userId}&select=*&order=created_at.desc&limit=50`);
 }
 
+async function loadPendingRequests() {
+  pendingRequests = await sb('key_requests?select=*,users!inner(first_name,username,telegram_id)&status=eq.pending&order=created_at.asc');
+}
+
 async function refreshAll() {
   if (!me) await loadMe();
-  await Promise.all([loadStats(), loadUsers(), loadRecentTxs()]);
+  await Promise.all([loadStats(), loadUsers(), loadRecentTxs(), loadPendingRequests()]);
   if (selectedUser) await loadUserTxs(selectedUser.id);
   render();
 }
@@ -297,6 +302,29 @@ async function grantKey() {
     showToast('Ошибка: ' + e.message.split(':').pop().trim().slice(0, 100), 'error');
   } finally {
     btn.disabled = false; btn.textContent = 'Начислить';
+  }
+}
+
+async function approveRequest(id, amount, firstName) {
+  if (!confirm(`Одобрить заявку на ${amount} KEY для ${firstName || 'юзера'}?`)) return;
+  try {
+    await rpc('approve_key_request', { p_request_id: id, p_comment: null });
+    showToast(`+${amount} KEY → ${firstName || 'юзер'}`, 'success');
+    await refreshAll();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message.split(':').pop().trim().slice(0, 100), 'error');
+  }
+}
+
+async function rejectRequest(id, firstName) {
+  const comment = prompt(`Отклонить заявку от ${firstName || 'юзера'}? Комментарий (необязательно):`);
+  if (comment === null) return;
+  try {
+    await rpc('reject_key_request', { p_request_id: id, p_comment: comment || null });
+    showToast(`Заявка отклонена`);
+    await refreshAll();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message.split(':').pop().trim().slice(0, 100), 'error');
   }
 }
 
@@ -357,27 +385,30 @@ function render() {
     </div>
 
     <div class="layout">
-      <div class="panel">
-        <h2>Юзеры <span class="badge">${users.length}</span></h2>
-        <div class="search">
-          <input id="searchInput" placeholder="Поиск по имени, @username или telegram_id…" oninput="onSearch(event)">
-        </div>
-        <div class="users-list">
-          ${users.length === 0 ? '<div class="empty">Никого не нашёл</div>' :
-          users.map(u => {
-            const p = u.profiles?.[0] || u.profiles || {};
-            return `<div class="user-row ${selectedUser?.id===u.id?'selected':''}" onclick="selectUser('${u.id}')">
-              <div class="avatar">${initials(u)}</div>
-              <div class="user-body">
-                <b>${u.first_name || '—'}${u.is_gm ? '<span class="gm-badge">GM</span>' : ''}</b>
-                <span>${u.username ? '@'+u.username : ''} · tg ${u.telegram_id}</span>
-              </div>
-              <div class="user-meta">
-                <b>${fmt(p.key_balance || 0)}</b>
-                <span>${p.highest_level_reached || 0}/12 · ${p.total_referrals || 0} реф</span>
-              </div>
-            </div>`;
-          }).join('')}
+      <div>
+        ${pendingRequests.length > 0 ? renderRequestsPanel() : ''}
+        <div class="panel">
+          <h2>Юзеры <span class="badge">${users.length}</span></h2>
+          <div class="search">
+            <input id="searchInput" placeholder="Поиск по имени, @username или telegram_id…" oninput="onSearch(event)">
+          </div>
+          <div class="users-list">
+            ${users.length === 0 ? '<div class="empty">Никого не нашёл</div>' :
+            users.map(u => {
+              const p = u.profiles?.[0] || u.profiles || {};
+              return `<div class="user-row ${selectedUser?.id===u.id?'selected':''}" onclick="selectUser('${u.id}')">
+                <div class="avatar">${initials(u)}</div>
+                <div class="user-body">
+                  <b>${u.first_name || '—'}${u.is_gm ? '<span class="gm-badge">GM</span>' : ''}</b>
+                  <span>${u.username ? '@'+u.username : ''} · tg ${u.telegram_id}</span>
+                </div>
+                <div class="user-meta">
+                  <b>${fmt(p.key_balance || 0)}</b>
+                  <span>${p.highest_level_reached || 0}/12 · ${p.total_referrals || 0} реф</span>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
         </div>
       </div>
 
@@ -386,6 +417,32 @@ function render() {
       </div>
     </div>
   `;
+}
+
+function renderRequestsPanel() {
+  return `<div class="panel" style="margin-bottom:12px;border-color:rgba(255,217,122,.4);background:linear-gradient(180deg,rgba(255,217,122,.06),var(--panel))">
+    <h2>🔔 Заявки на пополнение <span class="badge" style="background:rgba(255,217,122,.20);color:var(--gold)">${pendingRequests.length}</span></h2>
+    <div class="users-list" style="max-height:340px">
+      ${pendingRequests.map(r => {
+        const u = r.users || {};
+        return `<div class="user-row" style="border:1px solid var(--line);background:rgba(255,217,122,.04);cursor:default">
+          <div class="avatar">${initials(u)}</div>
+          <div class="user-body">
+            <b>${u.first_name || '—'}${u.username ? ' · @'+u.username : ''}</b>
+            <span>${r.reason ? r.reason : 'без причины'} · ${fmtDate(r.created_at)}</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div style="text-align:right;margin-right:6px">
+              <b style="font-size:14px;color:var(--gold)">${fmt(r.amount)}</b>
+              <span style="font-size:10px;color:var(--muted);display:block">KEY</span>
+            </div>
+            <button class="btn" style="padding:6px 10px;font-size:12px" onclick="approveRequest('${r.id}', ${r.amount}, '${(u.first_name || '').replace(/'/g,'')}')">✓</button>
+            <button class="btn ghost" style="padding:6px 10px;font-size:12px;background:rgba(255,110,134,.12);color:var(--red)" onclick="rejectRequest('${r.id}', '${(u.first_name || '').replace(/'/g,'')}')">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
 
 function renderUserCard() {
